@@ -484,8 +484,8 @@ locals {
     }
   ]
 
-  # If the tier is "WebServer" add the elb_settings, otherwise exclude them
-  elb_settings_final = var.tier == "WebServer" ? var.loadbalancer_type == "application" ? concat(local.alb_settings, local.generic_elb_settings) : concat(local.classic_elb_settings, local.generic_elb_settings) : []
+  # If the tier is "WebServer" and environment_type is "LoadBalanced" add the elb_settings, otherwise exclude them
+  elb_settings_final = var.tier == "WebServer" && var.environment_type == "LoadBalanced" ? var.loadbalancer_type == "application" ? concat(local.alb_settings, local.generic_elb_settings) : concat(local.classic_elb_settings, local.generic_elb_settings) : []
 }
 
 #
@@ -755,53 +755,44 @@ resource "aws_elastic_beanstalk_environment" "default" {
 
   ###=========================== Autoscale trigger ========================== ###
 
-  setting {
-    namespace = "aws:autoscaling:trigger"
-    name      = "MeasureName"
-    value     = var.autoscale_measure_name
-    resource  = ""
-  }
-
-  setting {
-    namespace = "aws:autoscaling:trigger"
-    name      = "Statistic"
-    value     = var.autoscale_statistic
-    resource  = ""
-  }
-
-  setting {
-    namespace = "aws:autoscaling:trigger"
-    name      = "Unit"
-    value     = var.autoscale_unit
-    resource  = ""
-  }
-
-  setting {
-    namespace = "aws:autoscaling:trigger"
-    name      = "LowerThreshold"
-    value     = var.autoscale_lower_bound
-    resource  = ""
-  }
-
-  setting {
-    namespace = "aws:autoscaling:trigger"
-    name      = "LowerBreachScaleIncrement"
-    value     = var.autoscale_lower_increment
-    resource  = ""
-  }
-
-  setting {
-    namespace = "aws:autoscaling:trigger"
-    name      = "UpperThreshold"
-    value     = var.autoscale_upper_bound
-    resource  = ""
-  }
-
-  setting {
-    namespace = "aws:autoscaling:trigger"
-    name      = "UpperBreachScaleIncrement"
-    value     = var.autoscale_upper_increment
-    resource  = ""
+  # Only apply autoscale settings when not using SingleInstance environment_type
+  dynamic "setting" {
+    for_each = var.environment_type == "SingleInstance" ? [] : [
+      {
+        name  = "MeasureName"
+        value = var.autoscale_measure_name
+      },
+      {
+        name  = "Statistic"
+        value = var.autoscale_statistic
+      },
+      {
+        name  = "Unit"
+        value = var.autoscale_unit
+      },
+      {
+        name  = "LowerThreshold"
+        value = var.autoscale_lower_bound
+      },
+      {
+        name  = "LowerBreachScaleIncrement"
+        value = var.autoscale_lower_increment
+      },
+      {
+        name  = "UpperThreshold"
+        value = var.autoscale_upper_bound
+      },
+      {
+        name  = "UpperBreachScaleIncrement"
+        value = var.autoscale_upper_increment
+      }
+    ]
+    content {
+      namespace = "aws:autoscaling:trigger"
+      name      = setting.value["name"]
+      value     = setting.value["value"]
+      resource  = ""
+    }
   }
 
   ###=========================== Scheduled Actions ========================== ###
