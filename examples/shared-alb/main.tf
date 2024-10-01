@@ -26,6 +26,21 @@ module "subnets" {
   context = module.this.context
 }
 
+module "alb" {
+  source  = "cloudposse/alb/aws"
+  version = "1.10.0"
+
+  vpc_id              = module.vpc.vpc_id
+  subnet_ids          = module.subnets.public_subnet_ids
+  access_logs_enabled = false
+
+  # This additional attribute is required since both the `alb` module and `elastic_beanstalk_environment` module
+  # create Security Groups with the names derived from the context (this would conflict without this additional attribute)
+  attributes = ["shared"]
+
+  context = module.this.context
+}
+
 module "elastic_beanstalk_application" {
   source  = "cloudposse/elastic-beanstalk-application/aws"
   version = "0.11.1"
@@ -47,10 +62,12 @@ module "elastic_beanstalk_environment" {
   elastic_beanstalk_application_name = module.elastic_beanstalk_application.elastic_beanstalk_application_name
   environment_type                   = var.environment_type
   loadbalancer_type                  = var.loadbalancer_type
-  elb_scheme                         = var.elb_scheme
-  tier                               = var.tier
-  version_label                      = var.version_label
-  force_destroy                      = var.force_destroy
+  loadbalancer_is_shared             = var.loadbalancer_is_shared
+  shared_loadbalancer_arn            = module.alb.alb_arn
+
+  tier          = var.tier
+  version_label = var.version_label
+  force_destroy = var.force_destroy
 
   instance_type    = var.instance_type
   root_volume_size = var.root_volume_size
@@ -66,10 +83,9 @@ module "elastic_beanstalk_environment" {
   autoscale_upper_bound     = var.autoscale_upper_bound
   autoscale_upper_increment = var.autoscale_upper_increment
 
-  vpc_id                              = module.vpc.vpc_id
-  loadbalancer_subnets                = module.subnets.public_subnet_ids
-  loadbalancer_redirect_http_to_https = true
-  application_subnets                 = module.subnets.private_subnet_ids
+  vpc_id               = module.vpc.vpc_id
+  loadbalancer_subnets = module.subnets.public_subnet_ids
+  application_subnets  = module.subnets.private_subnet_ids
 
   allow_all_egress = true
 
@@ -89,9 +105,6 @@ module "elastic_beanstalk_environment" {
   updating_min_in_service = var.updating_min_in_service
   updating_max_batch      = var.updating_max_batch
 
-  healthcheck_url  = var.healthcheck_url
-  application_port = var.application_port
-
   # https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html
   # https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.docker
   solution_stack_name = var.solution_stack_name
@@ -103,9 +116,6 @@ module "elastic_beanstalk_environment" {
   prefer_legacy_ssm_policy     = false
   prefer_legacy_service_policy = false
   scheduled_actions            = var.scheduled_actions
-
-  s3_bucket_versioning_enabled = var.s3_bucket_versioning_enabled
-  enable_loadbalancer_logs     = var.enable_loadbalancer_logs
 
   context = module.this.context
 }

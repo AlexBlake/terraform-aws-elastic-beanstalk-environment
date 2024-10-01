@@ -6,7 +6,7 @@ namespace = "eg"
 
 stage = "test"
 
-name = "eb-env"
+name = "eb-env-nlb"
 
 description = "Test elastic-beanstalk-environment"
 
@@ -14,7 +14,7 @@ tier = "WebServer"
 
 environment_type = "LoadBalanced"
 
-loadbalancer_type = "application"
+loadbalancer_type = "network"
 
 availability_zone_selector = "Any 2"
 
@@ -35,8 +35,6 @@ rolling_update_type = "Health"
 updating_min_in_service = 0
 
 updating_max_batch = 1
-
-healthcheck_url = "/"
 
 application_port = 80
 
@@ -71,11 +69,6 @@ dns_zone_id = ""
 // https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/command-options-general.html
 additional_settings = [
   {
-    namespace = "aws:elasticbeanstalk:environment:process:default"
-    name      = "StickinessEnabled"
-    value     = "false"
-  },
-  {
     namespace = "aws:elasticbeanstalk:managedactions"
     name      = "ManagedActionsEnabled"
     value     = "false"
@@ -89,5 +82,16 @@ env_vars = {
   "ANOTHER_ENV_VAR" = "123456789"
 }
 
-s3_bucket_versioning_enabled = false
-enable_loadbalancer_logs     = false
+// https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/environments-cfg-autoscaling-scheduledactions.html
+scheduled_actions = [
+  {
+    name            = "Refreshinstances"
+    minsize         = "1"
+    maxsize         = "2"
+    desiredcapacity = "2"
+    starttime       = "2015-05-14T07:00:00Z"
+    endtime         = "2025-01-12T07:00:00Z"
+    recurrence      = "*/20 * * * *"
+    suspend         = false
+  }
+]

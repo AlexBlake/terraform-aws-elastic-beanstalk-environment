@@ -6,7 +6,7 @@ namespace = "eg"
 
 stage = "test"
 
-name = "eb-env"
+name = "eb-env-shared-alb"
 
 description = "Test elastic-beanstalk-environment"
 
@@ -15,6 +15,8 @@ tier = "WebServer"
 environment_type = "LoadBalanced"
 
 loadbalancer_type = "application"
+
+loadbalancer_is_shared = true
 
 availability_zone_selector = "Any 2"
 
@@ -36,10 +38,6 @@ updating_min_in_service = 0
 
 updating_max_batch = 1
 
-healthcheck_url = "/"
-
-application_port = 80
-
 root_volume_size = 8
 
 root_volume_type = "gp2"
@@ -58,8 +56,6 @@ autoscale_upper_bound = 80
 
 autoscale_upper_increment = 1
 
-elb_scheme = "public"
-
 // https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html
 // https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.docker
 solution_stack_name = "64bit Amazon Linux 2023 v4.0.1 running Python 3.11"
@@ -70,11 +66,6 @@ dns_zone_id = ""
 
 // https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/command-options-general.html
 additional_settings = [
-  {
-    namespace = "aws:elasticbeanstalk:environment:process:default"
-    name      = "StickinessEnabled"
-    value     = "false"
-  },
   {
     namespace = "aws:elasticbeanstalk:managedactions"
     name      = "ManagedActionsEnabled"
@@ -89,5 +80,16 @@ env_vars = {
   "ANOTHER_ENV_VAR" = "123456789"
 }
 
-s3_bucket_versioning_enabled = false
-enable_loadbalancer_logs     = false
+// https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/environments-cfg-autoscaling-scheduledactions.html
+scheduled_actions = [
+  {
+    name            = "Refreshinstances"
+    minsize         = "1"
+    maxsize         = "2"
+    desiredcapacity = "2"
+    starttime       = "2015-05-14T07:00:00Z"
+    endtime         = "2025-01-12T07:00:00Z"
+    recurrence      = "*/20 * * * *"
+    suspend         = false
+  }
+]

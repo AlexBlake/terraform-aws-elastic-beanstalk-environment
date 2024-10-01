@@ -66,10 +66,9 @@ module "elastic_beanstalk_environment" {
   autoscale_upper_bound     = var.autoscale_upper_bound
   autoscale_upper_increment = var.autoscale_upper_increment
 
-  vpc_id                              = module.vpc.vpc_id
-  loadbalancer_subnets                = module.subnets.public_subnet_ids
-  loadbalancer_redirect_http_to_https = true
-  application_subnets                 = module.subnets.private_subnet_ids
+  vpc_id               = module.vpc.vpc_id
+  loadbalancer_subnets = module.subnets.public_subnet_ids
+  application_subnets  = module.subnets.private_subnet_ids
 
   allow_all_egress = true
 
@@ -89,7 +88,6 @@ module "elastic_beanstalk_environment" {
   updating_min_in_service = var.updating_min_in_service
   updating_max_batch      = var.updating_max_batch
 
-  healthcheck_url  = var.healthcheck_url
   application_port = var.application_port
 
   # https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html
@@ -104,8 +102,12 @@ module "elastic_beanstalk_environment" {
   prefer_legacy_service_policy = false
   scheduled_actions            = var.scheduled_actions
 
-  s3_bucket_versioning_enabled = var.s3_bucket_versioning_enabled
-  enable_loadbalancer_logs     = var.enable_loadbalancer_logs
+  # Unhealthy threshold count and healthy threshold count must be the same for Network Load Balancers
+  healthcheck_healthy_threshold_count   = 3
+  healthcheck_unhealthy_threshold_count = 3
+
+  # Health check interval must be either 10 seconds or 30 seconds for Network Load Balancers
+  healthcheck_interval = 30
 
   context = module.this.context
 }

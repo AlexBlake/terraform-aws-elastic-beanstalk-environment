@@ -26,10 +26,28 @@ variable "loadbalancer_type" {
   description = "Load Balancer type, e.g. 'application' or 'classic'"
 }
 
+variable "loadbalancer_is_shared" {
+  type        = bool
+  default     = false
+  description = "Flag to create a shared application loadbalancer. Only when loadbalancer_type = \"application\" https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/environments-cfg-alb-shared.html"
+}
+
+variable "shared_loadbalancer_arn" {
+  type        = string
+  default     = ""
+  description = "ARN of the shared application load balancer. Only when loadbalancer_type = \"application\"."
+}
+
 variable "loadbalancer_crosszone" {
   type        = bool
   default     = true
   description = "Configure the classic load balancer to route traffic evenly across all instances in all Availability Zones rather than only within each zone."
+}
+
+variable "loadbalancer_connection_idle_timeout" {
+  type        = number
+  default     = 60
+  description = "Classic load balancer only: Number of seconds that the load balancer waits for any data to be sent or received over the connection. If no data has been sent or received after this time period elapses, the load balancer closes the connection."
 }
 
 variable "dns_zone_id" {
@@ -42,49 +60,6 @@ variable "dns_subdomain" {
   type        = string
   default     = ""
   description = "The subdomain to create on Route53 for the EB environment. For the subdomain to be created, the `dns_zone_id` variable must be set as well"
-}
-
-variable "security_group_enabled" {
-  type        = bool
-  description = "Whether to create Security Group."
-  default     = true
-}
-
-variable "security_group_description" {
-  type        = string
-  default     = "Elastic Beanstalk environment Security Group"
-  description = "The Security Group description."
-}
-
-variable "security_group_use_name_prefix" {
-  type        = bool
-  default     = false
-  description = "Whether to create a default Security Group with unique name beginning with the normalized prefix."
-}
-
-variable "security_group_rules" {
-  type = list(any)
-  default = [
-    {
-      type        = "egress"
-      from_port   = 0
-      to_port     = 65535
-      protocol    = "-1"
-      cidr_blocks = ["0.0.0.0/0"]
-      description = "Allow all outbound traffic"
-    }
-  ]
-  description = <<-EOT
-    A list of maps of Security Group rules. 
-    The values of map is fully complated with `aws_security_group_rule` resource. 
-    To get more info see https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule .
-  EOT
-}
-
-variable "security_groups" {
-  type        = list(string)
-  description = "A list of Security Group IDs to associate with EC2 instances."
-  default     = []
 }
 
 variable "vpc_id" {
@@ -210,6 +185,12 @@ variable "rolling_update_type" {
   description = "`Health` or `Immutable`. Set it to `Immutable` to apply the configuration change to a fresh group of instances"
 }
 
+variable "deployment_policy" {
+  type        = string
+  default     = "Rolling"
+  description = "Use the DeploymentPolicy option to set the deployment type. The following values are supported: `AllAtOnce`, `Rolling`, `RollingWithAdditionalBatch`, `Immutable`, `TrafficSplitting`"
+}
+
 variable "updating_min_in_service" {
   type        = number
   default     = 1
@@ -242,7 +223,7 @@ variable "health_streaming_retention_in_days" {
 
 variable "healthcheck_url" {
   type        = string
-  default     = "/healthcheck"
+  default     = "/"
   description = "Application Health Check URL. Elastic Beanstalk will call this URL to check the health of the application running on EC2 instances"
 }
 
@@ -262,6 +243,12 @@ variable "logs_delete_on_terminate" {
   type        = bool
   default     = false
   description = "Whether to delete the log groups when the environment is terminated. If false, the logs are kept RetentionInDays days"
+}
+
+variable "enable_loadbalancer_logs" {
+  type        = bool
+  default     = true
+  description = "Whether to enable Load Balancer Logging to the S3 bucket."
 }
 
 variable "logs_retention_in_days" {
@@ -390,12 +377,6 @@ variable "elb_scheme" {
   description = "Specify `internal` if you want to create an internal load balancer in your Amazon VPC so that your Elastic Beanstalk application cannot be accessed from outside your Amazon VPC"
 }
 
-variable "ssh_source_restriction" {
-  type        = string
-  default     = "0.0.0.0/0"
-  description = "Used to lock down SSH access to the EC2 instances"
-}
-
 variable "ssh_listener_enabled" {
   type        = bool
   default     = false
@@ -492,7 +473,7 @@ variable "deployment_timeout" {
 
 variable "extended_ec2_policy_document" {
   type        = string
-  default     = "{}"
+  default     = ""
   description = "Extensions or overrides for the IAM role assigned to EC2 instances"
 }
 
@@ -520,12 +501,6 @@ variable "s3_bucket_versioning_enabled" {
   description = "When set to 'true' the s3 origin bucket will have versioning enabled"
 }
 
-variable "s3_bucket_encryption_enabled" {
-  type        = bool
-  default     = true
-  description = "When set to 'true' the resource will have aes256 encryption enabled by default"
-}
-
 variable "scheduled_actions" {
   type = list(object({
     name            = string
@@ -539,4 +514,93 @@ variable "scheduled_actions" {
   }))
   default     = []
   description = "Define a list of scheduled actions"
+}
+
+variable "healthcheck_interval" {
+  type        = number
+  default     = 10
+  description = "The interval of time, in seconds, that Elastic Load Balancing checks the health of the Amazon EC2 instances of your application"
+}
+
+variable "healthcheck_timeout" {
+  type        = number
+  default     = 5
+  description = "The amount of time, in seconds, to wait for a response during a health check. Note that this option is only applicable to environments with an application load balancer"
+}
+
+variable "healthcheck_healthy_threshold_count" {
+  type        = number
+  default     = 3
+  description = "The number of consecutive successful requests before Elastic Load Balancing changes the instance health status"
+}
+
+variable "healthcheck_unhealthy_threshold_count" {
+  type        = number
+  default     = 3
+  description = "The number of consecutive unsuccessful requests before Elastic Load Balancing changes the instance health status"
+}
+
+variable "healthcheck_httpcodes_to_match" {
+  type        = list(string)
+  default     = ["200"]
+  description = "List of HTTP codes that indicate that an instance is healthy. Note that this option is only applicable to environments with a network or application load balancer"
+}
+
+variable "root_volume_iops" {
+  type        = number
+  default     = null
+  description = "The IOPS of the EBS root volume (only applies for gp3 and io1 types)"
+}
+
+variable "root_volume_throughput" {
+  type        = number
+  default     = null
+  description = "The type of the EBS root volume (only applies for gp3 type)"
+}
+
+variable "enable_capacity_rebalancing" {
+  type        = bool
+  default     = false
+  description = "Specifies whether to enable the Capacity Rebalancing feature for Spot Instances in your Auto Scaling Group"
+}
+
+variable "loadbalancer_redirect_http_to_https" {
+  type        = bool
+  default     = false
+  description = "Redirect HTTP traffic to HTTPS listener"
+}
+
+variable "loadbalancer_redirect_http_to_https_priority" {
+  type        = number
+  default     = 1
+  description = "Defines the priority for the HTTP to HTTPS redirection rule"
+}
+
+variable "loadbalancer_redirect_http_to_https_path_pattern" {
+  type        = list(string)
+  default     = ["*"]
+  description = "Defines the path pattern for the HTTP to HTTPS redirection rule"
+}
+
+variable "loadbalancer_redirect_http_to_https_host" {
+  type        = string
+  default     = "#{host}"
+  description = "Defines the host for the HTTP to HTTPS redirection rule"
+}
+
+variable "loadbalancer_redirect_http_to_https_port" {
+  type        = string
+  default     = "443"
+  description = "Defines the port for the HTTP to HTTPS redirection rule"
+}
+
+variable "loadbalancer_redirect_http_to_https_status_code" {
+  type        = string
+  default     = "HTTP_301"
+  description = "The redirect status code"
+
+  validation {
+    condition     = contains(["HTTP_301", "HTTP_302"], var.loadbalancer_redirect_http_to_https_status_code)
+    error_message = "Allowed values are \"HTTP_301\" or \"HTTP_302\"."
+  }
 }

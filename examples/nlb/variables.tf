@@ -93,11 +93,6 @@ variable "updating_max_batch" {
   description = "Maximum number of instances to update at once"
 }
 
-variable "healthcheck_url" {
-  type        = string
-  description = "Application Health Check URL. Elastic Beanstalk will call this URL to check the health of the application running on EC2 instances"
-}
-
 variable "application_port" {
   type        = number
   description = "Port application is listening on"
@@ -183,14 +178,4 @@ variable "scheduled_actions" {
   }))
   default     = []
   description = "Define a list of scheduled actions"
-}
-
-variable "s3_bucket_versioning_enabled" {
-  type        = bool
-  description = "When set to 'true' the s3 origin bucket will have versioning enabled"
-}
-
-variable "enable_loadbalancer_logs" {
-  type        = bool
-  description = "Whether to enable Load Balancer Logging to the S3 bucket."
 }
